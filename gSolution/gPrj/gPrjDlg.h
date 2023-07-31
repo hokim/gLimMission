@@ -46,4 +46,16 @@ public:
 	afx_msg void OnBnClickedBtnGetData();
 	afx_msg void OnBnClickedBtnThread();
 	int processImg(CRect rect);
+
+// hokim
+protected:
+	int m_nOldX, m_nOldY, m_nOldRadius;
+	
+public:
+	int m_nUserRadius;
+	afx_msg void OnBnClickedButtonUserDraw();
+	bool UserRadius_ValidCheck(int &nValidRadius);
+	void drawCircle(unsigned char* fm, int i, int j, int nRadius, int nGray = 0x0, int nOutlineGray = 0x0, bool bIsClear = false);
+	int isInCircle(int i, int j, int nCenterX, int nCenterY, int nRadius);
+	void drawCross(unsigned char* fm, int nCenterX, int nCenterY, int nLength);
 };

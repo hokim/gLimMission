@@ -51,10 +51,19 @@ END_MESSAGE_MAP()
 
 // CgPrjDlg 대화 상자
 
-
+enum {
+	eRet_None = 0,
+	eRet_InnerCircle,
+	eRet_Circle,
+	eRet_Max
+};
 
 CgPrjDlg::CgPrjDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(IDD_GPRJ_DIALOG, pParent)
+	, m_nOldX(0)
+	, m_nOldY(0)
+	, m_nOldRadius(0)
+	, m_nUserRadius(50)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -62,6 +71,7 @@ CgPrjDlg::CgPrjDlg(CWnd* pParent /*=NULL*/)
 void CgPrjDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Text(pDX, IDC_EDIT_USER_RADIUS, m_nUserRadius);
 }
 
 BEGIN_MESSAGE_MAP(CgPrjDlg, CDialogEx)
@@ -74,6 +84,7 @@ BEGIN_MESSAGE_MAP(CgPrjDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BTN_MAKE_PATTERN, &CgPrjDlg::OnBnClickedBtnMakePattern)
 	ON_BN_CLICKED(IDC_BTN_GET_DATA, &CgPrjDlg::OnBnClickedBtnGetData)
 	ON_BN_CLICKED(IDC_BTN_THREAD, &CgPrjDlg::OnBnClickedBtnThread)
+	ON_BN_CLICKED(IDC_BUTTON_USER_DRAW, &CgPrjDlg::OnBnClickedButtonUserDraw)
 END_MESSAGE_MAP()
 
 
@@ -252,6 +263,79 @@ void CgPrjDlg::OnBnClickedBtnProcess()
 	cout << nRet << "\t"<< millisec.count()*0.001 << "sec" <<endl;
 }
 
+void CgPrjDlg::drawCircle(unsigned char* fm, int x, int y, int nRadius, int nGray, int nOutlineGray, bool bIsClear /*= false*/)
+{
+	int nCenterX = x + nRadius;
+	int nCenterY = y + nRadius;
+	int nPitch = m_pDlgImage->m_image.GetPitch();
+
+	if (!bIsClear)
+	{
+		cout << nCenterX << "\t" << nCenterY << endl;
+	}
+
+	for (int j = y; j < y + nRadius * 2; j++) {
+		for (int i = x; i < x + nRadius * 2; i++) {
+			switch (isInCircle(i, j, nCenterX, nCenterY, nRadius))
+			{
+			case eRet_InnerCircle:
+				fm[j * nPitch + i] = nGray;
+				break;
+
+			case eRet_Circle:
+				fm[j * nPitch + i] = nOutlineGray;
+				break;
+
+			case eRet_None:
+			default:
+				break;
+			}
+
+			//if (isInCircle3(i, j, nCenterX, nCenterY, nRadius) == true)
+			//{
+			//	fm[j * nPitch + i] = nGray;
+			//}
+		}
+	}
+}
+
+int CgPrjDlg::isInCircle(int i, int j, int nCenterX, int nCenterY, int nRadius)
+{
+	int nRet = eRet_None;
+
+	double dX = i - nCenterX;
+	double dY = j - nCenterY;
+	double dDist = dX * dX + dY * dY;
+
+	if ((dDist < (nRadius * nRadius)) && (((nRadius * nRadius) - dDist) < (nRadius * 2))) {
+		nRet = eRet_Circle;  //Circle shape
+	}
+	else if (dDist < nRadius * nRadius)
+	{
+		nRet = eRet_InnerCircle;
+	}
+	else
+	{
+		nRet = eRet_None;
+	}
+
+	return nRet;
+}
+
+
+void CgPrjDlg::drawCross(unsigned char* fm, int nCenterX, int nCenterY, int nLength)
+{
+	int nPitch = m_pDlgImage->m_image.GetPitch();
+	const int nHalfLength = nLength / 2;
+
+	for (int i = (nCenterY - nHalfLength); i < (nCenterY + nHalfLength); i++) {
+		fm[i * nPitch + nCenterX] = 1;
+	}
+
+	for (int i = (nCenterX - nHalfLength); i < (nCenterX + nHalfLength); i++) {
+		fm[nCenterY * nPitch + i] = 1;
+	}
+}
 
 void CgPrjDlg::OnBnClickedBtnMakePattern()
 {
@@ -353,4 +437,69 @@ int CgPrjDlg::processImg(CRect rect)
 
 	cout << nRet << "\t" << millisec.count()*0.001 << "sec" << endl;
 	return nRet;
+}
+
+bool CgPrjDlg::UserRadius_ValidCheck(int &nValidRadius)
+{
+	bool bResult = true;
+	CString strRadius = _T("");
+	CEdit* pEdit = (CEdit*)GetDlgItem(IDC_EDIT_USER_RADIUS);
+	pEdit->GetWindowText(strRadius);
+	const int nRadius = _ttoi(strRadius);
+
+	if (nRadius < 10 || nRadius > 200)
+	{
+		//pEdit->SetWindowText(_T("50"));
+		bResult = false;
+	}
+	else
+	{
+		nValidRadius = nRadius;
+	}
+
+	return bResult;
+}
+
+void CgPrjDlg::OnBnClickedButtonUserDraw()
+{
+	static bool bFirst = true;
+	int nValidRadius = 0;
+	if (!UserRadius_ValidCheck(nValidRadius))
+	{
+		return;
+	}
+
+	unsigned char* fm = (unsigned char*)m_pDlgImage->m_image.GetBits();
+	int nWidth = m_pDlgImage->m_image.GetWidth();
+	int nHeight = m_pDlgImage->m_image.GetHeight();
+	int nPitch = m_pDlgImage->m_image.GetPitch();
+	if (bFirst)
+	{
+		memset(fm, 0x0, nWidth * nHeight);
+		bFirst = false;
+	}
+
+	CRect rect;// (100, 100, 200, 200);
+	m_pDlgImage->GetWindowRect(&rect);
+	m_pDlgImage->ScreenToClient(&rect);
+
+	int x = rand() % rect.Width();
+	int y = rand() % rect.Height();
+
+	const int nRadius = nValidRadius;
+
+	if (m_nOldX > 0 && m_nOldY > 0 && m_nOldRadius > 0)
+	{
+		drawCircle(fm, m_nOldX, m_nOldY, m_nOldRadius, 0, 0, true);  //Clear
+	}
+
+	drawCircle(fm, x, y, nRadius, 0x0, 2);
+	drawCross(fm, x + nRadius, y + nRadius, 20);  //Red cross line
+
+	m_pDlgImage->Invalidate();
+
+	// Backup position of the current circle
+	m_nOldX = x;
+	m_nOldY = y;
+	m_nOldRadius = nRadius;
 }

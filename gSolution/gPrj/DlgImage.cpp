@@ -67,6 +67,24 @@ void CDlgImage::InitImage()
 		static RGBQUAD rgb[256];
 		for (int i = 0; i < 256; i++)
 			rgb[i].rgbRed = rgb[i].rgbGreen = rgb[i].rgbBlue = i;
+
+		// RGB color table
+		// 1 : Red
+		rgb[1].rgbRed = 255;
+		rgb[1].rgbGreen = 0;
+		rgb[1].rgbBlue = 0;
+
+		// 2 : Yellow
+		rgb[2].rgbRed = 255;
+		rgb[2].rgbGreen = 255;
+		rgb[2].rgbBlue = 0;
+
+		// 3 : Blue
+		rgb[3].rgbRed = 0;
+		rgb[3].rgbGreen = 0;
+		rgb[3].rgbBlue = 255;
+
+		//
 		m_image.SetColorTable(0, 256, rgb);
 	}
 
